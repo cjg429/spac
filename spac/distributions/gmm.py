@@ -123,8 +123,7 @@ class GMM(object):
             # log p(x)
             log_p_x_t = tf.reduce_logsumexp(log_p_xz_t + log_ws_t, axis=1)
             log_p_x_t -= tf.reduce_logsumexp(log_ws_t, axis=1)  # N
-
-        
+ 
         energy_components = []
         for i in range(self._K):
             for j in range(self._K):
@@ -150,11 +149,18 @@ class GMM(object):
         self._log_ws_t = log_ws_t
         self._mus_t = xz_mus_t
         self._log_sigs_t = xz_log_sigs_t
-
+        
+    def log_p_a_t(self, action):
+        log_p_a_t = self._create_log_gaussian(
+                self._mus_t, self._log_sigs_t, tf.tile(action[:, tf.newaxis, :], [1, self._K, 1]))
+        log_p_a_t = tf.reduce_logsumexp(log_p_a_t + self._log_ws_t, axis=1)
+        log_p_a_t -= tf.reduce_logsumexp(self._log_ws_t, axis=1)  # N 
+        return log_p_a_t
+        
     @property
     def energy_t(self):
         return self._energies_t   
-        
+    
     @property
     def log_p_t(self):
         return self._log_p_x_t

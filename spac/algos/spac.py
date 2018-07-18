@@ -200,12 +200,6 @@ class SPAC(RLAlgorithm, Serializable):
             shape=(None, ),
             name='rewards',
         )
-        
-        self._advantages_ph = tf.placeholder(
-            tf.float32,
-            shape=(None, ),
-            name='advantages',
-        )
 
         self._terminals_ph = tf.placeholder(
             tf.float32,
@@ -248,14 +242,14 @@ class SPAC(RLAlgorithm, Serializable):
 
         self._training_ops.append(qf_train_op)
         """
-        self._vf_t = self._vf.get_output_for(self._observations_ph, reuse=True)  # N
+        # self._vf_t = self._vf.get_output_for(self._observations_ph, reuse=True)  # N
         self._vf_params = self._vf.get_params_internal()
         
-        self._vf_next_target_t = self._vf.get_output_for(self._next_observations_ph, reuse=True)
+        # self._vf_next_target_t = self._vf.get_output_for(self._next_observations_ph, reuse=True)
         
-        self._vf_target_params = self._vf.get_params_internal()
+        # self._vf_target_params = self._vf.get_params_internal()
         
-        self._tds = self.scale_reward * self._rewards_ph + (1 - self._terminals_ph) * self._discount * self._vf_next_target_t - self._vf_t
+        # self._tds = self.scale_reward * self._rewards_ph + (1 - self._terminals_ph) * self._discount * self._vf_next_target_t - self._vf_t
         
         self._td_loss_t = 0.5 * tf.reduce_mean((self._tds)**2)
         
@@ -270,12 +264,15 @@ class SPAC(RLAlgorithm, Serializable):
         """Create minimization operations for policy function.
         """
 
-        actions, log_pi, energy = self._policy.actions_for(observations=self._observations_ph,
-                                                   with_log_pis=True, with_energy=True)
-        #energy = self._policy.energy(observations=self._observations_ph)
+        # actions, log_pi, energy = self._policy.actions_for(observations=self._observations_ph,
+        #                                            with_log_pis=True, with_energy=True)
+        #log_pi, energy = self._policy.probs_for(observations=self._observations_ph, actions=self._actions_ph,
+        #                                           with_log_pis=True, with_energy=False)
+        energy = self._policy.energy_for(observations=self._observations_ph)
+        
+        log_pi = self._policy.probs_for(observations=self._observations_ph, actions=self._actions_ph)
         
         self._vf_t = self._vf.get_output_for(self._observations_ph, reuse=True)  # N
-        self._vf_params = self._vf.get_params_internal()
 
         self._vf_next_target_t = self._vf.get_output_for(self._next_observations_ph, reuse=True)
         
@@ -297,9 +294,13 @@ class SPAC(RLAlgorithm, Serializable):
         
         self._tds = self.scale_reward * self._rewards_ph + (1 - self._terminals_ph) * self._discount * self._vf_next_target_t - self._vf_t
         
-        policy_sp_loss = 0.5 * tf.reduce_mean((
-            tf.maximum(self._tds + self._alpha * (0.5 + 0.5 * energy), 0) - self._alpha * tf.exp(log_pi))**2)
+        # self._tds = self.scale_reward * self._rewards_ph + self._discount * self._vf_next_target_t - self._vf_t
         
+        # policy_sp_loss = 0.5 * tf.reduce_mean((
+        #     tf.maximum(self._tds + self._alpha * (0.5 + 0.5 * energy), 0) - self._alpha * tf.exp(log_pi))**2)
+        
+        policy_sp_loss = 0.5 * tf.reduce_mean((
+            tf.maximum(self._tds / self._alpha + (0.5 + 0.5 * energy), 0) - tf.exp(log_pi))**2)
         
         policy_regularization_losses = tf.get_collection(
             tf.GraphKeys.REGULARIZATION_LOSSES,

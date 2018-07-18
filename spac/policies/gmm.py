@@ -88,6 +88,39 @@ class GMMPolicy(NNPolicy, Serializable):
             return actions, log_pis
         
         return actions
+    
+    def energy_for(self, observations, latents=None,
+                    name=None, reuse=tf.AUTO_REUSE, regularize=False):
+        name = name or self.name
+
+        with tf.variable_scope(name, reuse=reuse):
+            distribution = GMM(
+                K=self._K,
+                hidden_layers_sizes=self._hidden_layers,
+                Dx=self._Da,
+                cond_t_lst=(observations,),
+                reg=self._reg
+            )
+        
+        return distribution.energy_t
+    
+    def probs_for(self, observations, actions, latents=None,
+                    name=None, reuse=tf.AUTO_REUSE, regularize=False):
+        name = name or self.name
+
+        with tf.variable_scope(name, reuse=reuse):
+            distribution = GMM(
+                K=self._K,
+                hidden_layers_sizes=self._hidden_layers,
+                Dx=self._Da,
+                cond_t_lst=(observations,),
+                reg=self._reg
+            )
+        
+        log_pis = distribution.log_p_a_t(actions)
+        if self._squash:
+                log_pis -= self._squash_correction(actions)
+        return log_pis
 
     def build(self):
         self._observations_ph = tf.placeholder(

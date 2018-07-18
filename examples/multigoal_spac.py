@@ -18,7 +18,7 @@ def run(variant):
     env = normalize(MultiGoalEnv(
         actuation_cost_coeff=1,
         distance_cost_coeff=0.1,
-        goal_reward=10,
+        goal_reward=1,
         init_sigma=0.1,
     ))
 
@@ -28,13 +28,13 @@ def run(variant):
     )
 
     sampler = SimpleSampler(
-        max_path_length=30, min_pool_size=100, batch_size=50)
+        max_path_length=30, min_pool_size=2000, batch_size=500)
 
     base_kwargs = {
         'sampler': sampler,
-        'epoch_length': 100,
+        'epoch_length': 2000,
         'n_epochs': 1000,
-        'n_train_repeat': 5,
+        'n_train_repeat': 200,
         'eval_render': True,
         'eval_n_episodes': 50,
         'eval_deterministic': False
@@ -52,12 +52,13 @@ def run(variant):
         eval_deterministic=False
     )
     '''
-    M = 128
+    M = 32
+    '''
     qf = NNQFunction(
         env_spec=env.spec,
         hidden_layer_sizes=[M, M]
     )
-
+    '''
     vf = NNVFunction(
         env_spec=env.spec,
         hidden_layer_sizes=[M, M]
@@ -68,8 +69,9 @@ def run(variant):
             env_spec=env.spec,
             K=4,
             hidden_layer_sizes=[M, M],
-            qf=qf,
-            reg=0.001
+            # qf=qf,
+            reg=0.001,
+            squash=False
         )
     elif variant['policy_type'] == 'lsp':
         bijector_config = {
@@ -86,7 +88,7 @@ def run(variant):
             bijector_config=bijector_config,
             observations_preprocessor=None
         )
-
+    '''
     plotter = QFPolicyPlotter(
         qf=qf,
         policy=policy,
@@ -96,18 +98,18 @@ def run(variant):
         default_action=[np.nan, np.nan],
         n_samples=100
     )
-
+    '''
     algorithm = SPAC(
         base_kwargs=base_kwargs,
         env=env,
         policy=policy,
         pool=pool,
         vf=vf,
-        plotter=plotter,
-        alpha=1.0,
-        lr=3e-4,
+        #plotter=plotter,
+        alpha=0.5,
+        lr=1e-3,
         scale_reward=3.0,
-        discount=0.999,
+        discount=0.99,
 
         save_full_state=True
     )
