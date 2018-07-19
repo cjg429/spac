@@ -64,13 +64,17 @@ class GMM(object):
             w_and_mu_and_logsig_t = mlp(
                 inputs=self._cond_t_lst,
                 layer_sizes=self._layer_sizes,
+                nonlinearity=tf.nn.tanh,
                 output_nonlinearity=None,
             )  # ... x K*Dx*2+K
 
         w_and_mu_and_logsig_t = tf.reshape(
             w_and_mu_and_logsig_t, shape=(-1, K, 2*Dx+1))
 
-        log_w_t = w_and_mu_and_logsig_t[..., 0]
+        log_w_t = tf.log(tf.nn.softmax(w_and_mu_and_logsig_t[..., 0]) + 1e-8)
+        
+        w_t = tf.nn.softmax(w_and_mu_and_logsig_t[..., 0])
+        # log_w_t = tf.log(tf.contrib.sparsemax.sparsemax(w_and_mu_and_logsig_t[..., 0]) + 1e-8)
         mu_t = w_and_mu_and_logsig_t[..., 1:1+Dx]
         log_sig_t = w_and_mu_and_logsig_t[..., 1+Dx:]
 
@@ -78,7 +82,7 @@ class GMM(object):
 
         log_w_t = tf.maximum(log_w_t, LOG_W_CAP_MIN)
 
-        return log_w_t, mu_t, log_sig_t
+        return log_w_t, mu_t, log_sig_t, w_t
 
     def _create_graph(self):
         Dx = self._Dx
@@ -92,10 +96,10 @@ class GMM(object):
 
         # Create p(x|z).
         with tf.variable_scope('p'):
-            log_ws_t, xz_mus_t, xz_log_sigs_t = self._create_p_xz_params()
+            log_ws_t, xz_mus_t, xz_log_sigs_t, ws_t = self._create_p_xz_params()
             # (N x K), (N x K x Dx), (N x K x Dx)
             xz_sigs_t = tf.exp(xz_log_sigs_t)
-            ws_t = tf.exp(log_ws_t)
+            # ws_t = tf.exp(log_ws_t)
 
             # Sample the latent code.
             z_t = tf.multinomial(logits=log_ws_t, num_samples=1)  # N x 1
@@ -146,6 +150,7 @@ class GMM(object):
         self._reg_loss_t = reg_loss_t
         self._x_t = x_t
 
+        self._ws_t = ws_t
         self._log_ws_t = log_ws_t
         self._mus_t = xz_mus_t
         self._log_sigs_t = xz_log_sigs_t
@@ -154,8 +159,14 @@ class GMM(object):
         log_p_a_t = self._create_log_gaussian(
                 self._mus_t, self._log_sigs_t, tf.tile(action[:, tf.newaxis, :], [1, self._K, 1]))
         log_p_a_t = tf.reduce_logsumexp(log_p_a_t + self._log_ws_t, axis=1)
-        log_p_a_t -= tf.reduce_logsumexp(self._log_ws_t, axis=1)  # N 
+        # log_p_a_t -= tf.reduce_logsumexp(self._log_ws_t, axis=1)  # N 
         return log_p_a_t
+    
+    def p_a_t(self, action):
+        log_p_a_t = self._create_log_gaussian(
+                self._mus_t, self._log_sigs_t, tf.tile(action[:, tf.newaxis, :], [1, self._K, 1]))
+        p_a_t = tf.reduce_sum(tf.exp(log_p_a_t) * self._ws_t, axis=1)
+        return p_a_t
         
     @property
     def energy_t(self):

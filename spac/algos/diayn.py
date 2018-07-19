@@ -4,7 +4,7 @@ from rllab.core.serializable import Serializable
 from rllab.misc import logger
 from rllab.misc.overrides import overrides
 
-from spac.algos.spac import SPAC
+from spac.algos.spac import SPAC, SPAC_V2
 from spac.misc import tf_utils, utils
 from spac.misc.sampler import rollouts
 from spac.policies.hierarchical_policy import FixedOptionPolicy

@@ -3,7 +3,7 @@ import numpy as np
 
 from rllab.envs.normalized_env import normalize
 from rllab.misc.instrument import run_experiment_lite
-from spac.algos import SPAC
+from spac.algos import SPAC_V2
 from multigoal import MultiGoalEnv
 #from sac.envs import MultiGoalEnv
 from spac.misc.sampler import SimpleSampler
@@ -28,16 +28,16 @@ def run(variant):
     )
 
     sampler = SimpleSampler(
-        max_path_length=30, min_pool_size=10000, batch_size=50)
+        max_path_length=30, min_pool_size=1000, batch_size=50)
 
     base_kwargs = {
         'sampler': sampler,
-        'epoch_length': 10000,
+        'epoch_length': 1000,
         'n_epochs': 1000,
-        'n_train_repeat': 2000,
+        'n_train_repeat': 50,
         'eval_render': True,
         'eval_n_episodes': 50,
-        'eval_deterministic': False
+        'eval_deterministic': True
     }
     '''
     base_kwargs = dict(
@@ -53,12 +53,12 @@ def run(variant):
     )
     '''
     M = 32
-    '''
+ 
     qf = NNQFunction(
         env_spec=env.spec,
         hidden_layer_sizes=[M, M]
     )
-    '''
+    
     vf = NNVFunction(
         env_spec=env.spec,
         hidden_layer_sizes=[M, M]
@@ -69,8 +69,8 @@ def run(variant):
             env_spec=env.spec,
             K=4,
             hidden_layer_sizes=[M, M],
-            # qf=qf,
-            reg=0.000,
+            qf=qf,
+            reg=0.001,
             squash=False
         )
     elif variant['policy_type'] == 'lsp':
@@ -99,14 +99,15 @@ def run(variant):
         n_samples=100
     )
     '''
-    algorithm = SPAC(
+    algorithm = SPAC_V2(
         base_kwargs=base_kwargs,
         env=env,
         policy=policy,
         pool=pool,
+        qf=qf,
         vf=vf,
         #plotter=plotter,
-        alpha=1.0,
+        alpha=0.5,
         lr=1e-3,
         scale_reward=3.0,
         discount=0.99,

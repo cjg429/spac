@@ -117,10 +117,15 @@ class GMMPolicy(NNPolicy, Serializable):
                 reg=self._reg
             )
         
+        """
         log_pis = distribution.log_p_a_t(actions)
         if self._squash:
                 log_pis -= self._squash_correction(actions)
         return log_pis
+        """
+        pis = distribution.p_a_t(actions)
+        
+        return pis
 
     def build(self):
         self._observations_ph = tf.placeholder(
